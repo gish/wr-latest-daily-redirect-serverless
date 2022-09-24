@@ -17,7 +17,7 @@ func main() {
 	if clientSecret == "" {
 		panic("REDDIT_CLIENT_SECRET not set")
 	}
-	d := daily.NewDaily(clientId, clientSecret, "golang:wr-latest-daily-redirect-serverless:1.0.0 (by /u/murrtu)")
+	d := daily.NewDaily(clientId, clientSecret, "golang:wr-latest-daily-redirect-serverless:1.0.0 (by /u/murrtu)", "https://www.reddit.com/api/v1/access_token", "https://oauth.reddit.com/r/weightroom")
 
 	posts, err := d.Posts()
 	if err != nil {

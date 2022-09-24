@@ -13,9 +13,11 @@ import (
 )
 
 type Daily struct {
-	ClientId     string
-	ClientSecret string
-	UserAgent    string
+	ClientId       string
+	ClientSecret   string
+	UserAgent      string
+	SubredditURL   string
+	AccessTokenURL string
 }
 
 type AccessTokenResponse struct {
@@ -34,22 +36,24 @@ type PostListingContentDataChildren struct {
 	Post model.RedditPost `json:"data"`
 }
 
-func NewDaily(clientId string, clientSecret string, userAgent string) *Daily {
+func NewDaily(clientId string, clientSecret string, userAgent string, accessTokenURL string, subredditURL string) *Daily {
 	daily := &Daily{
-		ClientId:     clientId,
-		ClientSecret: clientSecret,
-		UserAgent:    userAgent,
+		ClientId:       clientId,
+		ClientSecret:   clientSecret,
+		UserAgent:      userAgent,
+		AccessTokenURL: accessTokenURL,
+		SubredditURL:   subredditURL,
 	}
 	return daily
 }
 
 func (d *Daily) Posts() (*[]model.RedditPost, error) {
-	accessToken, err := d.accessToken("https://www.reddit.com/api/v1/access_token")
+	accessToken, err := d.accessToken()
 	if err != nil {
 		return nil, err
 	}
 
-	posts, err := d.subRedditPosts("https://oauth.reddit.com/r/weightroom", *accessToken)
+	posts, err := d.subRedditPosts(d.SubredditURL, *accessToken)
 	if err != nil {
 		return nil, err
 	}
@@ -68,13 +72,13 @@ func (d *Daily) Latest(posts *[]model.RedditPost) (*model.RedditPost, error) {
 	return nil, errors.New("no daily post found")
 }
 
-func (d *Daily) accessToken(baseURL string) (*string, error) {
+func (d *Daily) accessToken() (*string, error) {
 	client := &http.Client{}
 	data := url.Values{
 		"grant_type": {"client_credentials"},
 	}
 
-	req, err := http.NewRequest(http.MethodPost, baseURL, strings.NewReader(data.Encode()))
+	req, err := http.NewRequest(http.MethodPost, d.AccessTokenURL, strings.NewReader(data.Encode()))
 	if err != nil {
 		return nil, err
 	}

@@ -25,8 +25,8 @@ func TestAccessTokenReturnsTokenWhenOK(t *testing.T) {
 		w.Write([]byte(`{"access_token": "abc123"}`))
 	}))
 	defer server.Close()
-	d := NewDaily(expectedUsername, expectedPassword, "userAgent")
-	actual, err := d.accessToken(server.URL)
+	d := NewDaily(expectedUsername, expectedPassword, "userAgent", server.URL, "subredditURL")
+	actual, err := d.accessToken()
 
 	if actual == nil {
 		t.Errorf("did not get access token [err] [%+v]", err)
@@ -43,8 +43,8 @@ func TestAccessTokenReturnsErrorWhenRequestNotOK(t *testing.T) {
 		w.Write([]byte(`{"access_token": "abc123"}`))
 	}))
 	defer server.Close()
-	d := NewDaily("username", "password", "userAgent")
-	_, err := d.accessToken(server.URL)
+	d := NewDaily("username", "password", "userAgent", server.URL, "subredditURL")
+	_, err := d.accessToken()
 
 	if err.Error() != errors.New("failed with response 500").Error() {
 		t.Errorf("did not get error: %+v", err)
@@ -57,27 +57,12 @@ func TestAccessTokenReturnsErrorWhenParsingResponseNotOK(t *testing.T) {
 		w.Write([]byte(`{"accessoken": "abc123"}`))
 	}))
 	defer server.Close()
-	d := NewDaily("username", "password", "userAgent")
-	_, err := d.accessToken(server.URL)
+	d := NewDaily("username", "password", "userAgent", server.URL, "subredditURL")
+	_, err := d.accessToken()
 
 	if err != nil && err.Error() != errors.New("empty access token").Error() {
 		t.Errorf("did not get error: %+v", err)
 	}
-}
-
-func TestPostsReturnsPostsWhenOK(t *testing.T) {
-	postA := model.RedditPost{
-		Title:  "Some other thread",
-		Url:    "",
-		IsSelf: false,
-	}
-	expected := []model.RedditPost{postA}
-	d := NewDaily("id", "secret", "userAgent")
-	actual, _ := d.Posts()
-	if &expected != actual {
-		//	t.Errorf("posts not returned, [expected, actual] [%+v, %+v]", expected, actual)
-	}
-
 }
 
 func TestSubRedditPostsReturnsErrorWhenRequestFails(t *testing.T) {
@@ -85,7 +70,7 @@ func TestSubRedditPostsReturnsErrorWhenRequestFails(t *testing.T) {
 		w.WriteHeader(http.StatusInternalServerError)
 	}))
 	defer server.Close()
-	d := NewDaily("username", "password", "userAgent")
+	d := NewDaily("username", "password", "userAgent", "accessTokenURL", "subredditURL")
 	_, err := d.subRedditPosts(server.URL, "accessToken")
 
 	if err.Error() != errors.New("failed with response 500").Error() {
@@ -104,7 +89,7 @@ func TestSubRedditPostsReturnsPostsWhenOK(t *testing.T) {
 		w.Write(postsFixture)
 	}))
 	defer server.Close()
-	d := NewDaily("username", "password", "userAgent")
+	d := NewDaily("username", "password", "userAgent", "accessTokenURL", "subredditURL")
 
 	posts, err := d.subRedditPosts(server.URL, "accessToken")
 	if err != nil {
@@ -123,7 +108,7 @@ func TestSubRedditPostsReturnsPostsWhenOK(t *testing.T) {
 
 func TestLatestReturnsErrorWhenNoFound(t *testing.T) {
 	posts := []model.RedditPost{}
-	d := NewDaily("id", "secret", "userAgent")
+	d := NewDaily("username", "password", "userAgent", "accessTokenURL", "subredditURL")
 
 	latest, err := d.Latest(&posts)
 	if latest != nil {
@@ -157,7 +142,7 @@ func TestLatestReturnsFirstFoundDaily(t *testing.T) {
 		IsSelf: true,
 	}
 	posts := []model.RedditPost{postA, postB, postC, postD}
-	d := NewDaily("id", "secret", "userAgent")
+	d := NewDaily("username", "password", "userAgent", "accessTokenURL", "subredditURL")
 	latest, _ := d.Latest(&posts)
 
 	if *latest != postB {
