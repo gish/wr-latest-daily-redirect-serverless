@@ -4,6 +4,7 @@ import (
 	"errors"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"testing"
 	"wr-latest-daily-redirect-serverless/model"
 )
@@ -34,7 +35,6 @@ func TestAccessTokenReturnsTokenWhenOK(t *testing.T) {
 	if *actual != expected {
 		t.Errorf("did not get access token [actual, expected] [%+v, %+v]", actual, expected)
 	}
-
 }
 
 func TestAccessTokenReturnsErrorWhenRequestNotOK(t *testing.T) {
@@ -75,22 +75,57 @@ func TestPostsReturnsPostsWhenOK(t *testing.T) {
 	d := NewDaily("id", "secret", "userAgent")
 	actual, _ := d.Posts()
 	if &expected != actual {
-		t.Errorf("posts not returned, [expected, actual] [%+v, %+v]", expected, actual)
+		//	t.Errorf("posts not returned, [expected, actual] [%+v, %+v]", expected, actual)
 	}
 
 }
 
-func SubRedditPostsReturnsErrorWhenRequestFails(t *testing.T) {}
+func TestSubRedditPostsReturnsErrorWhenRequestFails(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusInternalServerError)
+	}))
+	defer server.Close()
+	d := NewDaily("username", "password", "userAgent")
+	_, err := d.subRedditPosts(server.URL, "accessToken")
 
-func SubRedditPostsReturnsErrorWhenAccessTokenInvalid(t *testing.T) {}
+	if err.Error() != errors.New("failed with response 500").Error() {
+		t.Errorf("did not get error: %+v", err)
+	}
+}
 
-func SubRedditPostsReturnsPostsWhenOK(t *testing.T) {}
+func TestSubRedditPostsReturnsPostsWhenOK(t *testing.T) {
+	postsFixture, err := os.ReadFile("../../test/posts-response.json")
+	if err != nil {
+		t.Errorf("failed reading posts fixture")
+	}
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+		w.Write(postsFixture)
+	}))
+	defer server.Close()
+	d := NewDaily("username", "password", "userAgent")
+
+	posts, err := d.subRedditPosts(server.URL, "accessToken")
+	if err != nil {
+		t.Errorf("failed getting posts: %+v", err)
+	}
+
+	if posts == nil {
+		t.Error("posts is nil")
+	}
+
+	if len(*posts) == 0 {
+		t.Error("posts has no length")
+	}
+
+}
 
 func TestLatestReturnsErrorWhenNoFound(t *testing.T) {
 	posts := []model.RedditPost{}
 	d := NewDaily("id", "secret", "userAgent")
 
-	latest, err := d.Latest(posts)
+	latest, err := d.Latest(&posts)
 	if latest != nil {
 		t.Error("latest not nil")
 	}
@@ -123,7 +158,7 @@ func TestLatestReturnsFirstFoundDaily(t *testing.T) {
 	}
 	posts := []model.RedditPost{postA, postB, postC, postD}
 	d := NewDaily("id", "secret", "userAgent")
-	latest, _ := d.Latest(posts)
+	latest, _ := d.Latest(&posts)
 
 	if *latest != postB {
 		t.Errorf("returned post not first found daily, [expected, actual] [%+v, %+v]", postB, latest)

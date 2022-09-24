@@ -22,6 +22,18 @@ type AccessTokenResponse struct {
 	AccessToken string `json:"access_token"`
 }
 
+type PostListingContent struct {
+	Data PostListingContentData `json:"data"`
+}
+
+type PostListingContentData struct {
+	Children []PostListingContentDataChildren `json:"children"`
+}
+
+type PostListingContentDataChildren struct {
+	Post model.RedditPost `json:"data"`
+}
+
 func NewDaily(clientId string, clientSecret string, userAgent string) *Daily {
 	daily := &Daily{
 		ClientId:     clientId,
@@ -36,14 +48,19 @@ func (d *Daily) Posts() (*[]model.RedditPost, error) {
 	if err != nil {
 		return nil, err
 	}
-	fmt.Printf("access token %s", *accessToken)
-	return nil, nil
+
+	posts, err := d.subRedditPosts("https://oauth.reddit.com/r/weightroom", *accessToken)
+	if err != nil {
+		return nil, err
+	}
+
+	return posts, nil
 }
 
-func (d *Daily) Latest(posts []model.RedditPost) (*model.RedditPost, error) {
+func (d *Daily) Latest(posts *[]model.RedditPost) (*model.RedditPost, error) {
 	titleRegex := regexp.MustCompile("(?i)daily")
 
-	for _, post := range posts {
+	for _, post := range *posts {
 		if titleRegex.Match([]byte(post.Title)) && post.IsSelf {
 			return &post, nil
 		}
@@ -91,6 +108,40 @@ func (d *Daily) accessToken(baseURL string) (*string, error) {
 	return &a.AccessToken, nil
 }
 
-func (d *Daily) subRedditPosts(baseURL string) (*[]model.RedditPost, error) {
-	return nil, nil
+func (d *Daily) subRedditPosts(baseURL string, accessToken string) (*[]model.RedditPost, error) {
+	req, err := http.NewRequest(http.MethodGet, baseURL, strings.NewReader(""))
+	if err != nil {
+		return nil, err
+	}
+	req.Header.Set("Authorization", fmt.Sprintf("bearer %s", accessToken))
+	req.Header.Set("User-Agent", d.UserAgent)
+
+	client := &http.Client{}
+	resp, err := client.Do(req)
+	if err != nil {
+		return nil, err
+	}
+	if resp.StatusCode != 200 {
+		return nil, errors.New(fmt.Sprintf("failed with response %d", resp.StatusCode))
+	}
+
+	content, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		return nil, err
+	}
+
+	postListing := &PostListingContent{}
+
+	err = json.Unmarshal(content, postListing)
+	if err != nil {
+		return nil, err
+	}
+
+	posts := []model.RedditPost{}
+	for _, post := range *&postListing.Data.Children {
+		posts = append(posts, post.Post)
+	}
+
+	return &posts, nil
+
 }
