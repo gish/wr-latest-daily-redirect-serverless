@@ -12,20 +12,22 @@ type Handler struct {
 	ClientId       string
 	ClientSecret   string
 	SubredditURL   string
+	UserAgent      string
 }
 
-func NewHandler(clientId string, clientSecret string, accessTokenURL string, subredditURL string) (*Handler, error) {
+func NewHandler(clientId string, clientSecret string, accessTokenURL string, subredditURL string, userAgent string) (*Handler, error) {
 	h := Handler{
 		AccessTokenURL: accessTokenURL,
 		ClientId:       clientId,
 		ClientSecret:   clientSecret,
 		SubredditURL:   subredditURL,
+		UserAgent:      userAgent,
 	}
 	return &h, nil
 }
 
 func (h *Handler) Handle(req events.APIGatewayProxyRequest) (events.APIGatewayProxyResponse, error) {
-	d := daily.NewDaily(h.ClientId, h.ClientSecret, "golang:wr-latest-daily-redirect-serverless:1.0.0 (by /u/murrtu)", h.AccessTokenURL, h.SubredditURL)
+	d := daily.NewDaily(h.ClientId, h.ClientSecret, h.UserAgent, h.AccessTokenURL, h.SubredditURL)
 
 	posts, err := d.Posts()
 	if err != nil {
