@@ -7,7 +7,7 @@ locals {
   region                = "eu-north-1"
   account_id            = "852264810958"
   log_retention_in_days = 3
-  domain                = "dailytest.stafre.se"
+  domain                = "daily.stafre.se"
   secrets               = jsondecode(data.aws_secretsmanager_secret_version.this.secret_string)
 }
 
@@ -130,7 +130,7 @@ EOF
 ## Route 53
 resource "aws_route53_record" "this" {
   zone_id = "Z0558704PABIEWFOHFEE"
-  name    = "dailytest"
+  name    = "daily"
   type    = "CNAME"
   ttl     = 5
 
